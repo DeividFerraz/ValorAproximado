@@ -13,7 +13,5 @@ namespace ValorAproximado.Data
         }
 
         public DbSet<Empresas> Empresas { get; set; }
-        public DbSet<ConversationMessage> ConversationMessage { get; set; }
-        public DbSet<ConversationRequest> ConversationRequest { get; set; }
     }
 }

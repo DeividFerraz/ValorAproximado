@@ -11,7 +11,7 @@ namespace ValorAproximado.Controllers
     [ApiController]
     public class ValorAproximadoController : ControllerBase
     {
-        /*
+
         private readonly EmpresasGetDbContext _context;
 
         public ValorAproximadoController(EmpresasGetDbContext context)
@@ -77,7 +77,7 @@ namespace ValorAproximado.Controllers
             }
         }
         #endregion
-        */
+
         #region "PostValor"
         [HttpPost("{valor}")]
         public Task<IActionResult> PostValor(decimal valor, [FromBody] List<BodyEmpresa> opcoes)

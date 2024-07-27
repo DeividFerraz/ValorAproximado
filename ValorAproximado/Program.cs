@@ -11,6 +11,9 @@ builder.Services.AddDbContext<EmpresasGetDbContext>(x => x.UseNpgsql(connectionS
 builder.Services.AddHttpClient<GptAssistenteController>();
 
 builder.Services.AddControllers();
+// Adicionando Razor Pages
+builder.Services.AddRazorPages();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -38,6 +41,7 @@ builder.Services.AddSwaggerGen(c =>
             new string[] {}
         }
     });
+    c.EnableAnnotations();
 });
 
 var app = builder.Build();
@@ -51,45 +55,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseStaticFiles(); // Necessário para servir arquivos estáticos, como CSS
+
+app.UseRouting();
+
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapRazorPages(); // Adicionando suporte para Razor Pages
 
 app.Run();
-
-
-
-/*using Microsoft.EntityFrameworkCore;
-using ValorAproximado.Controllers;
-using ValorAproximado.Data;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("ConnectionPostgres");
-builder.Services.AddDbContext<EmpresasGetDbContext>(x => x.UseNpgsql(connectionString));
-builder.Services.AddHttpClient<GptController>();
-
-
-
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();*/

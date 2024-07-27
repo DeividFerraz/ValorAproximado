@@ -1,7 +1,12 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json.Linq;
+using Swashbuckle.AspNetCore.Annotations;
 using System.Drawing;
+using System.Runtime.Intrinsics.X86;
+using System.Text.Json;
+using System.Xml.Linq;
 using ValorAproximado.Data;
 using ValorAproximado.Models;
 
@@ -29,7 +34,8 @@ namespace ValorAproximado.Controllers
                 var empresa = await _context.Empresas.ToListAsync();
                 return Ok(empresa);
 
-            }catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 return BadRequest($"Nenhuma empresa encontrada{ex.Message}");
             }
@@ -71,7 +77,8 @@ namespace ValorAproximado.Controllers
                     return BadRequest($"Nenhuma empresa incluida");
                 }
 
-            }catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 return BadRequest($"Erro na inclusão da empresa {ex.Message}");
             }
@@ -79,27 +86,28 @@ namespace ValorAproximado.Controllers
         #endregion
 
         #region "PostValor"
-        [HttpPost("{valor}")]
-        public Task<IActionResult> PostValor(decimal valor, [FromBody] List<BodyEmpresa> opcoes)
+        [HttpPost("{valor}/{nomePropriedade}")]
+        [SwaggerOperation(Summary = "Adicione um Json de Objetos no body, e no path coloque o nome da propriedade e o valor que deseja, para ver o objeto que chega mais próximo.", Description = "Este endpoint envia uma pergunta para o assistente GPT.")]
+        public Task<IActionResult> PostValor([SwaggerParameter(Description = "Dados da pergunta")] 
+        string nomePropriedade, decimal valor, [FromBody] List<BodyEmpresa> opcoes)
         {
             try
             {
                 if (opcoes != null && opcoes.Count > 0)
                 {
-                    /*opcoes.OrderBy(o => Math.Abs(o.ValorEntrada - valor)): Aqui, a coleção opcoes é 
-                      ordenada com base em uma expressão lambda que calcula a diferença absoluta entre a 
-                      propriedade ValorEntrada de cada objeto (o.ValorEntrada) e o valor valor. 
-                      A função OrderBy() ordena os elementos em ordem crescente com base nessa diferença absoluta.
-                 FirstOrDefault(): Esta função retorna o primeiro elemento da coleção ordenada. 
-                 Como a coleção foi ordenada com base na diferença absoluta, o primeiro elemento será aquele 
-                 com a menor diferença absoluta em relação ao valor fornecido valor. Se a coleção estiver vazia,
-                 FirstOrDefault() retornará o valor padrão para o tipo de objeto (que é null para tipos de 
-                 referência).*/
-                    var valorAproximado = opcoes.OrderBy(o => Math.Abs(o.ValorEntrada - valor)).FirstOrDefault();
+                    var closestMatch = opcoes.SelectMany(o => o.Data)
+                        .Where(d => d.TryGetProperty(nomePropriedade, out JsonElement prop) && prop.ValueKind == JsonValueKind.Number)
+                        .Select(d => new
+                        {
+                            Object = d,
+                            Value = d.GetProperty(nomePropriedade).GetDecimal()
+                        })
+                        .OrderBy(d => Math.Abs(d.Value - valor))
+                        .FirstOrDefault();
 
-                    if (valorAproximado != null)
+                    if (closestMatch != null)
                     {
-                        return Task.FromResult<IActionResult>(Ok(valorAproximado));
+                        return Task.FromResult<IActionResult>(Ok(closestMatch.Object));
                     }
                     else
                     {
@@ -117,36 +125,39 @@ namespace ValorAproximado.Controllers
             }
         }
         #endregion
+        #region "Explicação selectMany"
+        /* Explicação do código: SelectMany = é usado para projetar cada elemento de uma sequência em uma coleção e achatar as coleções 
+         * resultantes em uma única sequência. Neste caso, estamos pegando todas as propriedades Data de cada objeto em opcoes e criando uma única sequência.
+        */
+        #endregion
 
-        #region "PostValor"
-        [HttpPost("/API/Paschoalotto{valor}")]
-        public Task<IActionResult> PostValor1(decimal valor, [FromBody] List<BodyEmpresa> opcoes)
-        {
-            try
-            {
-                if (opcoes != null && opcoes.Count > 0)
-                {
-                    var valorAproximado = opcoes.OrderBy(o => Math.Abs(o.ValorTotal - valor)).FirstOrDefault();
+        #region "Explicação where"
+        /*Where filtra a sequência de elementos com base em uma condição.Para cada elemento d(que é do tipo JsonElement), 
+        verificamos se ele possui uma propriedade com o nome especificado por nomePropriedade e se essa propriedade é um número(JsonValueKind.Number).
+        TryGetProperty tenta obter o valor da propriedade especificada e armazena-o em prop se bem-sucedido.*/
+        #endregion
 
-                    if (valorAproximado != null)
-                    {
-                        return Task.FromResult<IActionResult>(Ok(valorAproximado));
-                    }
-                    else
-                    {
-                        return Task.FromResult<IActionResult>(NotFound("Nenhuma opção encontrada."));
-                    }
-                }
-                else
-                {
-                    return Task.FromResult<IActionResult>(BadRequest("Nenhuma lista de opções fornecida no corpo da solicitação."));
-                }
-            }
-            catch (Exception ex)
-            {
-                return Task.FromResult<IActionResult>(StatusCode(500, $"Ocorreu um erro: {ex.Message}"));
-            }
-        }
+        #region "Explicação Select"
+        /*Select projeta cada elemento da sequência em uma nova forma.
+        Para cada d (elemento da sequência filtrada), criamos um objeto anônimo com duas propriedades: Object (o próprio elemento d) e 
+        Value (o valor da propriedade nomePropriedade convertida para decimal).*/
+        #endregion
+
+        #region "Explicação OrderBy, que calcula o valor mais proximo do input"
+        /*OrderBy classifica os elementos em ordem crescente com base na chave fornecida.
+        A chave de ordenação é a diferença absoluta (Math.Abs) entre o valor da propriedade (d.Value) e o 
+        valor especificado (valor). Isso é feito para encontrar o valor mais próximo de valor.*/
+        #endregion
+
+        #region"Explicação FirstOrDefault"
+        /*FirstOrDefault retorna o primeiro elemento da sequência ordenada ou o valor padrão (nulo) se a sequência estiver vazia.
+        O resultado final é o elemento da sequência cujo valor da propriedade nomePropriedade é o mais próximo de valor.*/
+        #endregion
+
+        #region "Resumo"
+        /*Então, em resumo, este código está procurando no conjunto de dados (opcoes) o objeto cuja propriedade especificada (nomePropriedade) 
+         * tem um valor numérico mais próximo de um valor fornecido (valor). Ele retorna o primeiro objeto que atende a este critério ou nulo se 
+         * nenhum objeto for encontrado.*/
         #endregion
     }
 }
